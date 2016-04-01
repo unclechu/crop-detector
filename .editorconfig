@@ -1,0 +1,4 @@
+[*.hs]
+trim_trailing_whitespace = true
+intent_style = space
+indent_size = 2
