@@ -17,6 +17,10 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
+source-repository head
+  type:     git
+  location: https://github.com/unclechu/crop-detector
+
 executable crop-detector
   main-is:             Main.hs
   -- other-modules:
