@@ -13,7 +13,7 @@ import qualified Data.Array.Repa.IO.DevIL as IL
 main :: IO ()
 main = do
 
-  [ thresholdArg, origF, cropF ] <- getArgs
+  [ modeArg, thresholdArg, origF, cropF ] <- getArgs
 
   (IL.RGB orig) <- IL.runIL $ IL.readImage origF
   (IL.RGB crop) <- IL.runIL $ IL.readImage cropF
@@ -21,6 +21,10 @@ main = do
   let (ow, oh)  = imgSize orig
       (cw, ch)  = imgSize crop
       threshold = fromIntegral (read thresholdArg) :: Float
+      mode      = case modeArg of
+                       "every-pixel" -> EveryPixelMode
+                       "average"     -> AverageMode
+                       _             -> error "Unknown mode"
 
   if cw > ow || ch > oh
      then error $ foldr1 (++)
@@ -29,7 +33,7 @@ main = do
                   , "Cropped image size: ",  show cw, "x", show ch, "."
                   ]
      else let pairRGB   = (getRGBLazyMatrix orig, getRGBLazyMatrix crop)
-              foundCrop = findCropPos pairRGB (ow, oh) (cw, ch) threshold
+              foundCrop = findCropPos pairRGB (ow, oh) (cw, ch) mode threshold
           in case foundCrop of
                Nothing     -> error "Cropped image not found in original image"
                Just (x, y) ->
@@ -38,10 +42,11 @@ main = do
                             $ foldr (\v acc -> show v ++ " " ++ acc) ""
                                     [ x, (oh-ch-y), cw, ch ]
 
+data RGBt = RGBt Word8 Word8 Word8 deriving (Show)
+data Mode = EveryPixelMode | AverageMode deriving (Enum, Show)
+
 imgSize x = (w, h)
   where (R.Z R.:. h R.:. w R.:. _) = R.extent x
-
-data RGBt = RGBt Word8 Word8 Word8 deriving Show
 
 getRGBLazyMatrix img = [ [ getRGB img x y | y <- [0..] ] | x <- [0..] ]
   where getRGB img x y = RGBt (ch 0) (ch 1) (ch 2)
@@ -54,7 +59,7 @@ getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
         diff f = abs $ (f a) - (f b)
 
 -- threshold should be 0..255
-hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
+hasCropByThisPos (orig, crop) (cw, ch) mode threshold (x, y) =
 
   and [ lowDiff mx my | my <- ys, mx <- xs ]
 
@@ -66,10 +71,11 @@ hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
 
 
 -- threshold in percents
-findCropPos (orig, crop) (ow, oh) (cw, ch) threshold =
+findCropPos (orig, crop) (ow, oh) (cw, ch) mode threshold =
   find doWeHaveCropHere posMatrix
   where posMatrix = [ (x, y) | x <- xs, y <- ys ]
         xs = [0..(ow-cw-1)]
         ys = [0..(oh-ch-1)]
-        doWeHaveCropHere = hasCropByThisPos (orig, crop) (cw, ch) threshold8bit
         threshold8bit = threshold * 255 / 100
+        doWeHaveCropHere =
+          hasCropByThisPos (orig, crop) (cw, ch) mode threshold8bit

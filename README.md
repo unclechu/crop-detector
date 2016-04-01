@@ -13,13 +13,20 @@ crop-detector DIFF_THRESHOLD ORIGINAL_IMAGE CROPPED_IMAGE
 ```
 
 Where:
+  - MODE
+    - ```every-pixel```
+      for check every pixel for diff limit
+      (faster than ```average``` but needs higher diff threshold);
+    - ```average```
+      for check average value of whole crop-size chunk at position on
+      original image (slower but better for JPEG artifacts).
   - DIFF_THRESHOLD - Max percent of allowed difference (for JPEG artifacts);
   - ORIGINAL_IMAGE - Path to whole image;
   - CROPPED_IMAGE  - Path to image that is cropped part of ORIGINAL_IMAGE.
 
 Example cmd:
   ```bash
-  crop-detector 20 ~/Pictures/original.jpg ~/Pictures/cropped.jpg
+  crop-detector every-pixel 20 ~/Pictures/original.jpg ~/Pictures/cropped.jpg
   ```
 
 Example output: ```137 260 201 181```
