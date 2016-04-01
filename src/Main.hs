@@ -22,9 +22,11 @@ main = do
       (cw, ch)  = imgSize crop
       threshold = fromIntegral (read thresholdArg) :: Float
       mode      = case modeArg of
-                       "every-pixel" -> EveryPixelMode
-                       "average"     -> AverageMode
-                       _             -> error "Unknown mode"
+                       "every-pixel"         -> [EveryPixelMode]
+                       "perfect-every-pixel" -> [Perfect, EveryPixelMode]
+                       "average"             -> [AverageMode]
+                       "perfect-average"     -> [Perfect, AverageMode]
+                       _                     -> error "Unknown mode"
 
   if cw > ow || ch > oh
      then error $ foldr1 (++)
@@ -40,10 +42,13 @@ main = do
                    -- print crop parameters "x y w h"
                    putStrLn $ init
                             $ foldr (\v acc -> show v ++ " " ++ acc) ""
-                                    [ x, (oh-ch-y), cw, ch ]
+                                    [ x, oh-ch-y, cw, ch ]
 
 data RGBt = RGBt Word8 Word8 Word8 deriving (Show)
-data Mode = EveryPixelMode | AverageMode deriving (Enum, Show)
+data Mode = EveryPixelMode
+          | AverageMode
+          | Perfect
+            deriving (Enum, Show)
 
 imgSize x = (w, h)
   where (R.Z R.:. h R.:. w R.:. _) = R.extent x
@@ -56,26 +61,43 @@ getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
   where cR (RGBt x _ _) = fromIntegral x
         cG (RGBt _ x _) = fromIntegral x
         cB (RGBt _ _ x) = fromIntegral x
-        diff f = abs $ (f a) - (f b)
+        diff f = abs $ f a - f b
+
+hasCropByThisPos f (x, y) = case f (x, y) of
+                                 Nothing  -> False
+                                 Just _   -> True
 
 -- threshold should be 0..255
-hasCropByThisPos (orig, crop) (cw, ch) mode threshold (x, y) =
+cropByThisPos (orig, crop) (cw, ch) mode threshold (x, y) =
 
-  and [ lowDiff mx my | my <- ys, mx <- xs ]
+  case mode of
+       [EveryPixelMode] -> if everyPixelHasLowDiff then Just (x, y)
+                                                   else Nothing
+       -- [Perfect, EveryPixelMode] -> everyPixelDiff
+       _ -> error "This mode is unimplemented yet"
 
   where xs = [0..(cw-1)]
         ys = [0..(ch-1)]
-        lowDiff mx my = getRGBDiff (orig !! (x+mx) !! (y+my))
-                                   (crop !! mx     !! my    )
-                     <= threshold
+
+        everyPixelHasLowDiff = and [ hasLowDiff mx my | my <- ys, mx <- xs ]
+
+        -- everyPixelDiff = ...
+
+        diff mx my = getRGBDiff (orig !! (x+mx) !! (y+my))
+                                (crop !! mx     !! my    )
+        hasLowDiff mx my = diff mx my <= threshold
 
 
 -- threshold in percents
-findCropPos (orig, crop) (ow, oh) (cw, ch) mode threshold =
-  find doWeHaveCropHere posMatrix
+findCropPos (orig, crop) (ow, oh) (cw, ch) mode threshold = findIt
   where posMatrix = [ (x, y) | x <- xs, y <- ys ]
         xs = [0..(ow-cw-1)]
         ys = [0..(oh-ch-1)]
         threshold8bit = threshold * 255 / 100
-        doWeHaveCropHere =
-          hasCropByThisPos (orig, crop) (cw, ch) mode threshold8bit
+        doWeHaveCropHere = hasCropByThisPos
+                         $ cropByThisPos (orig, crop) (cw, ch) mode threshold8bit
+        findIt = case mode of
+                      [EveryPixelMode] -> find doWeHaveCropHere posMatrix
+                      -- [Perfect, EveryPixelMode] ->
+                      --   ... . map ... $ posMatrix
+                      _ -> error "This mode is unimplemented yet"

@@ -19,7 +19,13 @@ Where:
       (faster than ```average``` but needs higher diff threshold);
     - ```average```
       for check average value of whole crop-size chunk at position on
-      original image (slower but better for JPEG artifacts).
+      original image (slower but better for JPEG artifacts);
+    - Every mode has ```perfect-``` prefix, by default this app stops when
+      found first match, but with ```perfect-``` prefix it checks all
+      possible coordinates and choose better match, in many cases a lot
+      slower but gets you some guarantees, possible modes with this prefix:
+      - ```perfect-every-pixel```
+      - ```perfect-average```
   - DIFF_THRESHOLD - Max percent of allowed difference (for JPEG artifacts);
   - ORIGINAL_IMAGE - Path to whole image;
   - CROPPED_IMAGE  - Path to image that is cropped part of ORIGINAL_IMAGE.
