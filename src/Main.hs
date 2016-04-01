@@ -4,7 +4,6 @@
 module Main where
 
 import System.Environment (getArgs)
-import Data.Maybe (isNothing)
 import Data.List (find)
 import Data.Word (Word8)
 
@@ -23,29 +22,24 @@ main = do
       (cw, ch) = imgSize crop
 
   if cw > ow || ch > oh
-     then error $ [ "Cropped image can't have size more than original image.\n"
+     then error $ foldr1 (++)
+                  [ "Cropped image can't have size more than original image.\n"
                   , "Original image size: ", show ow, "x", show oh, ".\n"
                   , "Cropped image size: ",  show cw, "x", show ch, "."
-                  ] & foldr1 (++)
+                  ]
      else do
+
           let threshold = (fromIntegral $ read thresholdArg) :: Float
+              pairRGB   = (getRGBLazyMatrix orig, getRGBLazyMatrix crop)
+              foundCrop = findCropPos pairRGB (ow, oh) (cw, ch) threshold
 
-              origRGB   = getRGBLazyMatrix orig
-              cropRGB   = getRGBLazyMatrix crop
-
-              found =
-                findCropPos (origRGB, cropRGB) (ow, oh) (cw, ch) threshold
-
-          if isNothing found
-             then error "Cropped image not found in original image"
-             else do
-               let (Just (x, y)) = found
-               putStrLn $ [ x, (oh-ch-y), cw, ch ] -- crop parameters "x y w h"
-                        & (foldr (\v acc -> show v ++ " " ++ acc) "" ? init)
-
--- pipes
-(&) = flip ($)
-(?) = flip (.)
+          case foundCrop of
+               Nothing     -> error "Cropped image not found in original image"
+               Just (x, y) ->
+                   -- print crop parameters "x y w h"
+                   putStrLn $ init
+                            $ foldr (\v acc -> show v ++ " " ++ acc) ""
+                                    [ x, (oh-ch-y), cw, ch ]
 
 imgSize x = (w, h)
   where (R.Z R.:. h R.:. w R.:. _) = R.extent x
@@ -56,26 +50,21 @@ getRGBLazyMatrix img = [ [ getRGB img x y | y <- [0..] ] | x <- [0..] ]
   where getRGB img x y = RGBt (ch 0) (ch 1) (ch 2)
           where ch n = img R.! (R.Z R.:. y R.:. x R.:. n)
 
-getRGBDiff a b =
-  ( (abs $ (cR a) - (cR b))
-  + (abs $ (cG a) - (cG b))
-  + (abs $ (cB a) - (cB b))
-  ) & fromIntegral & (/ 3)
+getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
   where cR (RGBt x _ _) = fromIntegral x
         cG (RGBt _ x _) = fromIntegral x
         cB (RGBt _ _ x) = fromIntegral x
+        diff f = abs $ (f a) - (f b)
 
 hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
 
-  all (all (\(mx, my) -> lowDiff mx my)) [
-    [ (mx, my) | my <- ys ] | mx <- xs
-  ]
+  all (\(mx, my) -> lowDiff mx my) [ (mx, my) | my <- ys, mx <- xs ]
 
   where xs = [0..(cw-1)]
         ys = [0..(ch-1)]
-        lowDiff mx my =
-          getRGBDiff (orig !! (x+mx) !! (y+my)) (crop !! mx !! my)
-                   & (<= threshold)
+        lowDiff mx my = getRGBDiff (orig !! (x+mx) !! (y+my))
+                                   (crop !! mx     !! my    )
+                     <= threshold
 
 
 findCropPos (orig, crop) (ow, oh) (cw, ch) threshold =
