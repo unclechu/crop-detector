@@ -58,7 +58,7 @@ getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
 
 hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
 
-  all (\(mx, my) -> lowDiff mx my) [ (mx, my) | my <- ys, mx <- xs ]
+  and [ lowDiff mx my | my <- ys, mx <- xs ]
 
   where xs = [0..(cw-1)]
         ys = [0..(ch-1)]
