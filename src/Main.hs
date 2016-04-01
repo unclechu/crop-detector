@@ -18,8 +18,9 @@ main = do
   (IL.RGB orig) <- IL.runIL $ IL.readImage origF
   (IL.RGB crop) <- IL.runIL $ IL.readImage cropF
 
-  let (ow, oh) = imgSize orig
-      (cw, ch) = imgSize crop
+  let (ow, oh)  = imgSize orig
+      (cw, ch)  = imgSize crop
+      threshold = fromIntegral (read thresholdArg) :: Float
 
   if cw > ow || ch > oh
      then error $ foldr1 (++)
@@ -27,13 +28,9 @@ main = do
                   , "Original image size: ", show ow, "x", show oh, ".\n"
                   , "Cropped image size: ",  show cw, "x", show ch, "."
                   ]
-     else do
-
-          let threshold = (fromIntegral $ read thresholdArg) :: Float
-              pairRGB   = (getRGBLazyMatrix orig, getRGBLazyMatrix crop)
+     else let pairRGB   = (getRGBLazyMatrix orig, getRGBLazyMatrix crop)
               foundCrop = findCropPos pairRGB (ow, oh) (cw, ch) threshold
-
-          case foundCrop of
+          in case foundCrop of
                Nothing     -> error "Cropped image not found in original image"
                Just (x, y) ->
                    -- print crop parameters "x y w h"
@@ -56,6 +53,7 @@ getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
         cB (RGBt _ _ x) = fromIntegral x
         diff f = abs $ (f a) - (f b)
 
+-- threshold should be 0..255
 hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
 
   and [ lowDiff mx my | my <- ys, mx <- xs ]
@@ -67,9 +65,11 @@ hasCropByThisPos (orig, crop) (cw, ch) threshold (x, y) =
                      <= threshold
 
 
+-- threshold in percents
 findCropPos (orig, crop) (ow, oh) (cw, ch) threshold =
   find doWeHaveCropHere posMatrix
   where posMatrix = [ (x, y) | x <- xs, y <- ys ]
         xs = [0..(ow-cw-1)]
         ys = [0..(oh-ch-1)]
-        doWeHaveCropHere = hasCropByThisPos (orig, crop) (cw, ch) threshold
+        doWeHaveCropHere = hasCropByThisPos (orig, crop) (cw, ch) threshold8bit
+        threshold8bit = threshold * 255 / 100
