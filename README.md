@@ -14,18 +14,20 @@ crop-detector DIFF_THRESHOLD ORIGINAL_IMAGE CROPPED_IMAGE
 
 Where:
   - MODE
-    - ```every-pixel```
+    - `every-pixel` -
       for check every pixel for diff limit
-      (faster than ```average``` but needs higher diff threshold);
-    - ```average```
+      (faster than `average` but needs higher diff threshold);
+    - `average` -
       for check average value of whole crop-size chunk at position on
       original image (slower but better for JPEG artifacts);
-    - Every mode has ```perfect-``` prefix, by default this app stops when
-      found first match, but with ```perfect-``` prefix it checks all
+    - Every mode has `perfect-` prefix, by default this app stops when
+      found first match, but with `perfect-` prefix it checks all
       possible coordinates and choose better match, in many cases a lot
       slower but gets you some guarantees, possible modes with this prefix:
-      - ```perfect-every-pixel```
-      - ```perfect-average```
+      - `perfect-every-pixel` -
+        it needs additional checking for every pixel match, so it's slower
+        than `perfect-average` mode, it's better to use just `perfect-average`;
+      - `perfect-average`
   - DIFF_THRESHOLD - Max percent of allowed difference (for JPEG artifacts);
   - ORIGINAL_IMAGE - Path to whole image;
   - CROPPED_IMAGE  - Path to image that is cropped part of ORIGINAL_IMAGE.
@@ -35,8 +37,8 @@ Example cmd:
   crop-detector every-pixel 20 ~/Pictures/original.jpg ~/Pictures/cropped.jpg
   ```
 
-Example output: ```137 260 201 181```
-It's: ```x y width height``` of cropped image.
+Example output: `137 260 201 181`
+It's: `x y width height` of cropped image.
 
 Author
 ------

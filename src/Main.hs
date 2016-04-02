@@ -4,8 +4,9 @@
 module Main where
 
 import System.Environment (getArgs)
-import Data.List (find)
+import Data.List (find, minimumBy)
 import Data.Word (Word8)
+import Data.Maybe (isJust, mapMaybe)
 
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.IO.DevIL as IL
@@ -63,17 +64,23 @@ getRGBDiff a b = (diff cR + diff cG + diff cB) / 3
         cB (RGBt _ _ x) = fromIntegral x
         diff f = abs $ f a - f b
 
-hasCropByThisPos f (x, y) = case f (x, y) of
-                                 Nothing  -> False
-                                 Just _   -> True
+hasCropByThisPos f (x, y) = isJust $ f (x, y)
 
 -- threshold should be 0..255
 cropByThisPos (orig, crop) (cw, ch) mode threshold (x, y) =
 
   case mode of
-       [EveryPixelMode] -> if everyPixelHasLowDiff then Just (x, y)
-                                                   else Nothing
-       -- [Perfect, EveryPixelMode] -> everyPixelDiff
+
+       [EveryPixelMode] ->
+         if everyPixelHasLowDiff then Just (0, 0, 0)
+                                 else Nothing
+
+       -- it works like average mode,
+       -- but with checking for every pixel matching.
+       [Perfect, EveryPixelMode] ->
+         if isEveryPixelHasLowDiff then Just (x, y, averagePixelDiff)
+                                   else Nothing
+
        _ -> error "This mode is unimplemented yet"
 
   where xs = [0..(cw-1)]
@@ -81,7 +88,10 @@ cropByThisPos (orig, crop) (cw, ch) mode threshold (x, y) =
 
         everyPixelHasLowDiff = and [ hasLowDiff mx my | my <- ys, mx <- xs ]
 
-        -- everyPixelDiff = ...
+        everyPixelDiff = [ diff mx my | my <- ys, mx <- xs ]
+        isEveryPixelHasLowDiff = all (<= threshold) everyPixelDiff
+        averagePixelDiff = sum everyPixelDiff
+                         / fromIntegral (length everyPixelDiff)
 
         diff mx my = getRGBDiff (orig !! (x+mx) !! (y+my))
                                 (crop !! mx     !! my    )
@@ -94,10 +104,16 @@ findCropPos (orig, crop) (ow, oh) (cw, ch) mode threshold = findIt
         xs = [0..(ow-cw-1)]
         ys = [0..(oh-ch-1)]
         threshold8bit = threshold * 255 / 100
-        doWeHaveCropHere = hasCropByThisPos
-                         $ cropByThisPos (orig, crop) (cw, ch) mode threshold8bit
-        findIt = case mode of
-                      [EveryPixelMode] -> find doWeHaveCropHere posMatrix
-                      -- [Perfect, EveryPixelMode] ->
-                      --   ... . map ... $ posMatrix
-                      _ -> error "This mode is unimplemented yet"
+        found = cropByThisPos (orig, crop) (cw, ch) mode threshold8bit
+        doWeHaveCropHere = hasCropByThisPos found
+        findIt =
+          case mode of
+               [EveryPixelMode] -> find doWeHaveCropHere posMatrix
+               [Perfect, EveryPixelMode] ->
+                 let cmpByDiff (_, _, a) (_, _, b) = compare a b
+                     matches = mapMaybe found posMatrix
+                     pos (x, y, _) = (x, y)
+                     in case matches of
+                             [] -> Nothing
+                             _  -> Just $ pos $ minimumBy cmpByDiff matches
+               _ -> error "This mode is unimplemented yet"
