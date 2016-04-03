@@ -2,19 +2,19 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                crop-detector
-version:             0.0.0.0
+version:             0.0.0
 synopsis:            Utility that finds cropped image coordinates inside original image
 description:         Utility that finds cropped image coordinates inside original image
-                     with custom threshold between 0 to 255.
+                     by specific mode and custom threshold.
 homepage:            https://github.com/unclechu/crop-detector
 license:             GPL-3
 license-file:        LICENSE
 author:              Viacheslav Lotsmanov
-maintainer:          lotsmanov89@gmail.com
+maintainer:          Viacheslav Lotsmanov <lotsmanov89@gmail.com>
 -- copyright:
 category:            Graphics
 build-type:          Simple
--- extra-source-files:
+extra-source-files:  README.md
 cabal-version:       >=1.10
 
 source-repository head
@@ -26,7 +26,11 @@ executable crop-detector
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.7 && <4.8
-                       ,repa >=3.3 && <3.4
-                       ,repa-devil == 0.3.2.6
+                     , repa >=3.3 && <3.4
+                     , repa-devil ==0.3.2.6
+                     , parallel >=3.2 && <4.0
+                     , split ==0.2.3
+                  -- , hood == 0.3
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options:         -threaded
